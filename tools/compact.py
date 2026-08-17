@@ -46,6 +46,7 @@ phải giảm, `files` phải giảm, và `result hash` phải GIỮ NGUYÊN.
 from __future__ import annotations
 
 import pathlib
+import shutil
 import sys
 
 import duckdb
@@ -63,27 +64,44 @@ def main() -> int:
     n_src = len(list(SRC.glob("*.parquet")))
     print(f"  nguồn : {SRC}  ({n_src:,} file)")
 
-    # TODO(nhiệm vụ 4): hiện thực khung COPY ... TO ... ở phần docstring.
-    #
-    #   con.execute(f"""
-    #       copy (
-    #           select * from read_parquet('{SRC}/*.parquet')
-    #           order by ...
-    #       ) to '{DST}' (
-    #           format parquet,
-    #           partition_by (...),
-    #           overwrite_or_ignore,
-    #           row_group_size ...
-    #       )
-    #   """)
-    #
-    # Sau đó kiểm tra không mất hàng nào:
-    #
-    #   assert <số row dataset cũ> == <số row dataset mới>
+    if n_src == 0:
+        raise SystemExit(f"Không tìm thấy file Parquet nguồn trong {SRC}")
 
-    print("\n  tools/compact.py chưa được hiện thực — đây là nhiệm vụ 4.")
-    print("  Mở file này, đọc phần KHUNG THỰC HIỆN ở đầu file và điền vào TODO.")
-    print("  Hướng dẫn từng bước: GUIDE.md mục 4.\n")
+    src_glob = (SRC / "*.parquet").as_posix()
+    dst_glob = (DST / "**" / "*.parquet").as_posix()
+    dst_path = DST.as_posix()
+
+    src_rows = con.execute(
+        f"select count(*) from read_parquet('{src_glob}')"
+    ).fetchone()[0]
+
+    # Output là dữ liệu sinh lại, có thể xoá an toàn trước mỗi lần compact.
+    shutil.rmtree(DST, ignore_errors=True)
+
+    con.execute(f"""
+        copy (
+            select *
+            from read_parquet('{src_glob}')
+            order by event_date, customer_name
+        ) to '{dst_path}' (
+            format parquet,
+            partition_by (event_date),
+            overwrite_or_ignore,
+            row_group_size 4096
+        )
+    """)
+
+    dst_rows = con.execute(
+        f"select count(*) from read_parquet('{dst_glob}', hive_partitioning = true)"
+    ).fetchone()[0]
+    if src_rows != dst_rows:
+        raise SystemExit(
+            f"Số hàng thay đổi sau compact: {src_rows:,} -> {dst_rows:,}"
+        )
+
+    n_dst = len(list(DST.rglob("*.parquet")))
+    print(f"  đích  : {DST}  ({n_dst:,} file)")
+    print(f"  rows  : {src_rows:,} -> {dst_rows:,} (không mất dữ liệu)\n")
     return 0
 
 
