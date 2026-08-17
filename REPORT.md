@@ -1,6 +1,6 @@
 # Báo cáo LAB 17 — Data Pipeline Engineering
 
-**Họ tên:Trần Trọng Nghĩa** …  **Lớp:** Track2_E403  **Ngày:** 2026-08-17  
+**Họ tên:** Trần Trọng Nghĩa  **Lớp:** Track2_E403  **Ngày:** 2026-08-17
 **Git repo:** https://github.com/trongnghia0811haui-nice/Day17-Track2-DataPipeline
 
 ---
@@ -51,8 +51,8 @@
 
 ```
 
-Kết quả `make quick` hiện tại: **4/4 tiêu chí chính đạt**. `make verify` đầy đủ
-ba lượt cần được chạy sau cùng để ghi lại toàn bộ checksum ổn định.
+`make verify` đầy đủ ba lượt đạt **4/4 tiêu chí chính**; checksum của cả bốn bảng
+giống nhau ở cả ba lượt.
 
 ---
 
@@ -63,7 +63,7 @@ ba lượt cần được chạy sau cùng để ghi lại toàn bộ checksum �
 | **Triệu chứng** | Sau retry, `gold_training_set` có 38.750 hàng thay vì 12.480; cùng một `ticket_id` xuất hiện nhiều lần. |
 | **Nguyên nhân** | Model incremental không khai báo khóa duy nhất và chiến lược thay thế, nên dbt sinh ghi append/`INSERT`; retry cùng partition và CDC update tiếp tục thêm bản ghi cho cùng entity. |
 | **Cách khắc phục** | Trong `dbt/models/gold/gold_training_set.sql`, khai báo `unique_key = 'ticket_id'` và `incremental_strategy = 'merge'`; trong `dags/ai_training_pipeline.py`, đặt `catchup=False`, `max_active_runs=1`. |
-| **Bằng chứng** | Trước: 38.750 hàng · sau: 12.480 hàng · không còn ticket trùng · `make verify` cần bổ sung checksum của cả 3 lượt. |
+| **Bằng chứng** | Trước: 38.750 hàng · sau: 12.480 hàng · không còn ticket trùng · checksum: `8dd7c98653` ở cả 3 lượt. |
 
 ---
 
@@ -114,4 +114,3 @@ record hỏng không làm dừng việc xử lý dữ liệu hợp lệ còn l�
 | 1 | Grain, natural key và SQL write strategy của incremental model; đặc biệt kiểm tra retry có tạo append hay không. |
 | 2 | Phân bố event-time/ingestion-time và P99 trước khi chọn lookback. |
 | 3 | Raw values, data contract, thứ tự quarantine/ranking và khả năng giữ lại bản ghi hợp lệ trước đó. |
-
